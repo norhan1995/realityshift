@@ -1,0 +1,58 @@
+name: Generate neural narration
+
+on:
+  push:
+    paths:
+      - ".github/workflows/neural-narration.yml"
+  workflow_dispatch:
+
+jobs:
+  narration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Piper neural TTS
+        run: |
+          curl -L --fail --retry 3 -o piper.tar.gz https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_amd64.tar.gz
+          tar -xzf piper.tar.gz
+
+      - name: Download American English neural voice
+        run: |
+          curl -L --fail --retry 3 -o en_US-lessac-high.onnx https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/high/en_US-lessac-high.onnx
+          curl -L --fail --retry 3 -o en_US-lessac-high.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/high/en_US-lessac-high.onnx.json
+
+      - name: Generate RealityShift narration
+        shell: bash
+        run: |
+          cat > narration.txt <<'EOF'
+          Most agents keep executing the plan they started with, even after the world changes. RealityShift does something different. It asks whether the assumptions behind the plan are still true.
+
+          Here is the first run. The mission is to deliver five hundred certified units by Friday, under budget. The original plan depends on Atlas having all five hundred units. Then a signed inventory event arrives. Atlas now has only one hundred twenty.
+
+          That contradiction triggers re-evaluation, not a timer. RealityShift creates plan version two, keeps the deadline and certification rules, stays under budget, and splits the order between Atlas and Nova. Beside it, the static baseline keeps reserving inventory that no longer exists.
+
+          The second scenario is database failover. Replica lag jumps from eighteen seconds to eighteen minutes. RealityShift cancels the unsafe failover, throttles noncritical writes, and protects the sixty-second recovery objective.
+
+          But adaptation can fail too. A low-trust email claims inventory is zero while the authoritative source still reports five hundred. RealityShift refuses to overreact. It returns Hold and Verify, keeps plan version one, and records why.
+
+          Plan. Execute. Observe. Re-evaluate. Revise.
+
+          RealityShift changes its mind when reality changes, and can explain exactly why.
+          EOF
+
+          cat narration.txt | ./piper/piper             --model ./en_US-lessac-high.onnx             --output_file narration_raw.wav
+
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+          ffmpeg -y -hide_banner -loglevel error             -i narration_raw.wav             -af "highpass=f=70,lowpass=f=12000,acompressor=threshold=-20dB:ratio=2:attack=20:release=180,loudnorm=I=-16:TP=-1.5:LRA=10"             -ar 48000 -ac 1 narration_neural.wav
+
+          ffprobe -v error -show_entries format=duration -of default=nw=1 narration_neural.wav
+
+      - name: Upload narration artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: realityshift-neural-narration
+          path: |
+            narration_neural.wav
+            narration.txt
+          retention-days: 1
