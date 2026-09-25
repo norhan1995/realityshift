@@ -64,6 +64,10 @@ See [docs/FAILURE_TEST.md](docs/FAILURE_TEST.md).
 - Four unit tests for the safety-critical engine
 - GitHub Actions verifies tests + production build on every change
 
+## Live demo
+
+**Production:** https://realityshift.vercel.app
+
 ## Architecture
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/ARCHITECTURE.svg](docs/ARCHITECTURE.svg).
